@@ -5,15 +5,18 @@
 //   見出しの振り分けの式は program/scapin_search.cs と同じ。検索語の解釈と照合は query.js
 (() => {
   const BASE = 'search/';
-  const DOCS_PER_BATCH = 20;    // 「さらに表示」1 回で出す件数
-  const FETCH_PARALLEL = 6;     // 本文を同時に読み込む数
+  const DOCS_PER_BATCH = 100;   // 「さらに表示」1 回で出す件数
+  const FETCH_PARALLEL = 12;    // 本文を同時に読み込む数
   const HITS_PER_DOC = 3;       // 1 件の中で文脈を出す箇所数
   const CONTEXT = 80;           // 文脈の前後の文字数
 
   const Q = window.ScapinQuery;
   const $ = (id) => document.getElementById(id);
   const form = $('sform');
-  const fields = { q: $('fq'), no: $('fno'), dm: $('fdm'), d1: $('fd1'), d2: $('fd2'), s: $('fs'), dept: $('fdept'), sort: $('fsort') };
+  const fields = {
+    q: $('fq'), no: $('fno'), dm: $('fdm'), y1: $('fy1'), m1: $('fm1'), d1: $('fd1'), y2: $('fy2'), m2: $('fm2'), d2: $('fd2'),
+    s: $('fs'), file: $('ffile'), dept: $('fdept'), div: $('fdiv'), sort: $('fsort'),
+  };
   const dateRow = document.querySelector('.date-row');
   const statusEl = $('fstatus');
   const results = $('results');
@@ -38,36 +41,46 @@
   }
 
   // ── 指令の一覧と部局の選択肢 ──
-  //   meta.docs: [ファイル名, SCAPIN 番号, 年月日, 件名, 部局の番号]
+  //   meta.docs: [ファイル名, SCAPIN 番号, 年月日, 件名, 部局の番号, File No.]
   function loadMeta() {
     metaLoading ??= getJson('meta.json').then((m) => {
       meta = m;
       meta.base = m.docs.map((d) => (d[1] ? parseInt(d[1], 10) : NaN));
-      fillDepts();
+      buildDepts();
     });
     return metaLoading;
   }
 
-  // 部局の鍵「課 (名称)//部 (名称)」を、課ごとにまとめて並べる。課を選ぶとその下の部も含む
-  function fillDepts() {
+  // 部局の鍵「課 (名称)//部 (名称)」を課ごとにまとめ、課のプルダウンを作る。部のプルダウンは課を選ぶと作る
+  let sections = new Map();   // 課 → { total, subs: Map(部 → 件数) }
+  function buildDepts() {
     const count = new Array(meta.depts.length).fill(0);
     for (const d of meta.docs) if (d[4] >= 0) count[d[4]]++;
-    const sections = new Map();
+    sections = new Map();
     meta.depts.forEach((key, i) => {
       const [sec, ...rest] = key.split('//');
-      if (!sections.has(sec)) sections.set(sec, { total: 0, subs: [] });
+      if (!sections.has(sec)) sections.set(sec, { total: 0, subs: new Map() });
       const s = sections.get(sec);
       s.total += count[i];
-      if (rest.length) s.subs.push([key, rest.join(' / '), count[i]]);
+      if (rest.length) { const sub = rest.join('//'); s.subs.set(sub, (s.subs.get(sub) || 0) + count[i]); }
     });
+    sections = new Map([...sections].sort((a, b) => a[0].localeCompare(b[0])));
     let html = '<option value="">すべて</option>';
-    for (const [sec, s] of [...sections].sort((a, b) => a[0].localeCompare(b[0]))) {
-      html += `<option value="${esc(sec)}">${esc(sec)}（${s.total}）</option>`;
-      for (const [key, sub, n] of s.subs) html += `<option value="${esc(key)}">　　${esc(sub)}（${n}）</option>`;
-    }
+    for (const [sec, s] of sections) html += `<option value="${esc(sec)}">${esc(sec)}（${s.total}）</option>`;
     const cur = fields.dept.value;
     fields.dept.innerHTML = html;
     fields.dept.value = cur;
+    fillDivs();
+  }
+
+  function fillDivs(cur = '') {
+    const s = sections.get(fields.dept.value);
+    let html = '<option value="">すべて</option>';
+    if (s) for (const [sub, n] of [...s.subs].sort((a, b) => a[0].localeCompare(b[0]))) html += `<option value="${esc(sub)}">${esc(sub)}（${n}）</option>`;
+    fields.div.innerHTML = html;
+    fields.div.disabled = !s || !s.subs.size;
+    fields.div.value = cur;
+    if (fields.div.selectedIndex === -1) fields.div.value = '';
   }
 
   // ── 詳細検索の条件 ──
@@ -89,33 +102,47 @@
     return (i) => tests.some((t) => t(i));
   }
 
-  // 1946 / 1946-05 / 1946-05-03 → その期間の [最初の日, 最後の日]（文字列で比べる）
-  function parseDate(str, label) {
-    const s = str.trim();
-    if (!s) return null;
-    const m = s.match(/^(\d{4})(?:[-/.年](\d{1,2})(?:[-/.月](\d{1,2})日?)?月?)?年?$/);
-    if (!m) throw new InputError(`${label} の「${s}」を読み取れません（1946、1946-05、1946-05-03 の形で指定してください）`);
-    const p2 = (x) => String(x).padStart(2, '0');
-    if (m[3]) { const d = `${m[1]}-${p2(m[2])}-${p2(m[3])}`; return [d, d]; }
-    if (m[2]) return [`${m[1]}-${p2(m[2])}-01`, `${m[1]}-${p2(m[2])}-31`];
-    return [`${m[1]}-01-01`, `${m[1]}-12-31`];
+  // 年・月・日の欄 → その期間の [最初の日, 最後の日]（文字列で比べる）。年だけ、年と月だけでもよい
+  function parseDate(y, m, d, label) {
+    if (!y && !m && !d) return null;
+    const num = (x) => x.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+    [y, m, d] = [num(y), num(m), num(d)];
+    if (!/^\d{2}(\d{2})?$/.test(y)) throw new InputError(`${label}の年を 1946 か 46 の形で入れてください`);
+    if (y.length === 2) y = '19' + y;
+    if (m && !(/^\d{1,2}$/.test(m) && +m >= 1 && +m <= 12)) throw new InputError(`${label}の月を 1〜12 で入れてください`);
+    if (d && !(/^\d{1,2}$/.test(d) && +d >= 1 && +d <= 31)) throw new InputError(`${label}の日を 1〜31 で入れてください`);
+    if (d && !m) throw new InputError(`${label}の日を指定するときは月も入れてください`);
+    const p2 = (x) => String(+x).padStart(2, '0');
+    if (d) { const s = `${y}-${p2(m)}-${p2(d)}`; return [s, s]; }
+    if (m) return [`${y}-${p2(m)}-01`, `${y}-${p2(m)}-31`];
+    return [`${y}-01-01`, `${y}-12-31`];
   }
 
   function dateTest(v) {
     if (v.dm === 'range') {
-      const a = parseDate(v.d1, 'Date（期間の始め）');
-      const b = parseDate(v.d2, 'Date（期間の終わり）');
+      const a = parseDate(v.y1, v.m1, v.d1, 'Date（期間の始め）');
+      const b = parseDate(v.y2, v.m2, v.d2, 'Date（期間の終わり）');
       if (!a && !b) return null;
       return (i) => { const d = meta.docs[i][2]; return !!d && (!a || d >= a[0]) && (!b || d <= b[1]); };
     }
-    const a = parseDate(v.d1, 'Date');
+    const a = parseDate(v.y1, v.m1, v.d1, 'Date ');
     if (!a) return null;
     return (i) => { const d = meta.docs[i][2]; return !!d && d >= a[0] && d <= a[1]; };
   }
 
-  function deptTest(v) {
-    if (!v) return null;
-    return (i) => { const k = meta.depts[meta.docs[i][4]]; return !!k && (k === v || k.startsWith(v + '//')); };
+  // File No.: AG の後の番号と一致するもの。* を付けると前方一致（370* → 370、370.05 など）
+  function fileTest(str) {
+    const s = str.replace(/^\s*AG\s*/i, '').replace(/[\s()（）]/g, '').replace(/\.$/, '');
+    if (!s) return null;
+    if (s.endsWith('*')) { const p = s.slice(0, -1); return (i) => !!meta.docs[i][5] && meta.docs[i][5].startsWith(p); }
+    return (i) => meta.docs[i][5] === s;
+  }
+
+  // Department: 課だけなら、その下の部も含む
+  function deptTest(sec, div) {
+    if (!sec) return null;
+    const key = div ? `${sec}//${div}` : sec;
+    return (i) => { const k = meta.depts[meta.docs[i][4]]; return !!k && (k === key || (!div && k.startsWith(sec + '//'))); };
   }
 
   // ── 索引 ──
@@ -230,7 +257,7 @@
   }
 
   function renderDoc(i, cards, r) {
-    const [file, no, date, subject, deptNo] = meta.docs[i];
+    const [file, no, date, subject, deptNo, fileNo] = meta.docs[i];
     const href = `doc/${encodeURIComponent(file)}.html${r.v.q ? `?q=${encodeURIComponent(r.v.q)}` : ''}`;
     const dept = deptNo >= 0 ? meta.depts[deptNo].replace(/\/\//g, ' / ') : '';
     let lis = '';
@@ -249,7 +276,7 @@
       }
     }
     return `<article class="entry result">
-<div class="entry-meta"><span class="badge">${esc(no ? 'SCAPIN-' + no : 'Unnumbered')}</span><span class="crumb">${esc([date, dept].filter(Boolean).join(' ・ '))}</span>${total ? `<span class="source">${total} 箇所</span>` : ''}</div>
+<div class="entry-meta"><span class="badge">${esc(no ? 'SCAPIN-' + no : 'Unnumbered')}</span><span class="crumb">${esc([date, fileNo ? 'AG ' + fileNo : '', dept].filter(Boolean).join(' ・ '))}</span>${total ? `<span class="source">${total} 箇所</span>` : ''}</div>
 <h3 class="hw"><a href="${href}">${highlight(subject, r.subject)}</a></h3>
 ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class="more-hits"><a href="${href}">ほか ${total - shown} 箇所 →</a></p>` : ''}
 </article>`;
@@ -275,7 +302,7 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
         shown += batch.length;
         break;
       }
-      const batch = r.cand.slice(r.next, r.next + FETCH_PARALLEL);
+      const batch = r.cand.slice(r.next, r.next + Math.min(FETCH_PARALLEL, DOCS_PER_BATCH - shown));
       const texts = await Promise.all(batch.map(textOf));
       if (run !== r) return;
       r.next += batch.length;
@@ -302,10 +329,12 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
 
   function writeForm(p) {
     for (const [k, el] of Object.entries(fields)) {
+      if (k === 'div') continue;
       const def = k === 'dm' ? 'on' : k === 'sort' ? 'no' : '';
       el.value = p.get(k) ?? def;
       if (el.tagName === 'SELECT' && el.selectedIndex === -1) el.value = def;
     }
+    fillDivs(p.get('div') ?? '');
     syncDateMode();
   }
 
@@ -313,14 +342,14 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
     const p = new URLSearchParams();
     for (const [k, x] of Object.entries(v)) {
       if (!x || (k === 'dm' && x === 'on') || (k === 'sort' && x === 'no')) continue;
-      if (k === 'd2' && v.dm !== 'range') continue;
+      if (/^[ymd]2$/.test(k) && v.dm !== 'range') continue;
       p.set(k, x);
     }
     return p;
   }
 
   function hasCondition(v) {
-    return !!(v.q || v.no || v.d1 || (v.dm === 'range' && v.d2) || v.s || v.dept);
+    return !!(v.q || v.no || v.y1 || v.m1 || v.d1 || (v.dm === 'range' && (v.y2 || v.m2 || v.d2)) || v.s || v.file || v.dept);
   }
 
   async function search(push) {
@@ -339,7 +368,7 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
     try {
       await loadMeta();
       // 詳細検索の条件
-      const tests = [parseNo(v.no), dateTest(v), deptTest(v.dept)].filter(Boolean);
+      const tests = [parseNo(v.no), dateTest(v), fileTest(v.file), deptTest(v.dept, v.div)].filter(Boolean);
       if (v.s) {
         const sq = Q.parse(v.s);
         if (sq.error) throw new InputError(`Subject: ${sq.error}`);
@@ -376,12 +405,14 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
   }
 
   function syncDateMode() {
-    dateRow.classList.toggle('is-range', fields.dm.value === 'range');
-    fields.d1.setAttribute('aria-label', fields.dm.value === 'range' ? '期間の始め' : '日付');
+    const range = fields.dm.value === 'range';
+    dateRow.classList.toggle('is-range', range);
+    for (const k of ['y1', 'm1', 'd1']) fields[k].setAttribute('aria-label', (range ? '期間の始めの' : '') + fields[k].placeholder);
   }
 
   form.addEventListener('submit', (e) => { e.preventDefault(); search(true); });
   fields.dm.addEventListener('change', syncDateMode);
+  fields.dept.addEventListener('change', () => fillDivs());
   fields.sort.addEventListener('change', () => { if (hasCondition(readForm())) search(true); });
   $('fclear').addEventListener('click', () => {
     writeForm(new URLSearchParams());
@@ -397,4 +428,8 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
     if (location.search) search(false);
   });
   syncDateMode();
+
+  // 各指令のページの「関係の種類について」（#rel-help）から来たら、その説明を開く
+  const help = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  if (help && help.tagName === 'DETAILS') { help.open = true; help.scrollIntoView(); }
 })();

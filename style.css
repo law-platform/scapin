@@ -54,6 +54,11 @@
 }
 .search-row button:hover { background: #f3f4f6; }
 
+/* 元データの出典（検索ページの見出しの下） */
+.data-cite { margin: 4px 0 0; font-size: 0.8125rem; color: var(--muted); }
+.data-cite a { color: var(--accent); text-decoration: none; }
+.data-cite a:hover { text-decoration: underline; }
+
 /* ── 詳細検索 ── */
 .adv {
   display: grid;
@@ -77,10 +82,16 @@
 .adv select { width: 100%; max-width: 100%; text-overflow: ellipsis; }
 .adv input:focus, .adv select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
 .date-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-.date-row input { width: 9.5em; max-width: 100%; }
 .date-row select { width: auto; }
+.ymd { display: inline-flex; gap: 4px; }
+.adv .ymd input { width: 4.2em; text-align: center; }
+.adv .ymd input.y { width: 5.2em; }
 .date-row .range-only { display: none; }
-.date-row.is-range .range-only { display: inline-block; }
+.date-row.is-range .range-only { display: inline-flex; }
+.file-row, .dept-row { display: flex; align-items: center; gap: 8px; }
+.file-row input { max-width: 12em; }
+.dept-row select { flex: 1 1 0; min-width: 0; }
+.dept-row select:disabled { color: #9ca3af; background: #f9fafb; }
 .form-foot {
   display: flex;
   flex-wrap: wrap;
@@ -102,6 +113,20 @@
 #fsubmit:hover { background: #1d4ed8; }
 .hint { margin: 12px 0 0; font-size: 0.75rem; color: var(--muted); line-height: 1.7; }
 .hint code { padding: 0 3px; background: #f3f4f6; border-radius: 3px; font-size: 0.75rem; }
+
+/* 略号一覧（data/FileDepartment.txt） */
+.legend { margin-top: 10px; font-size: 0.8125rem; }
+.legend summary { cursor: pointer; color: var(--accent); width: fit-content; }
+.legend table { margin-top: 8px; border-collapse: collapse; }
+.legend th, .legend td { padding: 2px 10px 2px 0; text-align: left; vertical-align: top; }
+.legend th { font-weight: 500; white-space: nowrap; }
+.legend td { color: var(--muted); }
+.legend tr.sub th { padding-left: 1.5em; font-weight: 400; }
+.rel-help { margin-top: 8px; color: var(--ink); line-height: 1.7; }
+.rel-help p { margin: 0 0 6px; color: var(--muted); }
+.rel-help dl { margin: 0; }
+.rel-help dt { font-weight: 500; margin-top: 6px; }
+.rel-help dd { margin: 0 0 0 1.5em; color: var(--muted); }
 
 /* ── 全文検索の結果（juridic の検索結果カードと同じ作り） ── */
 .badge {
@@ -184,6 +209,17 @@ mark { background: #fef08a; color: inherit; padding: 0 1px; border-radius: 2px; 
 .s-note { font-size: 0.875rem; color: var(--muted); margin-top: 8px; }
 .s-note p { margin: 0; }
 
+/* ── 関係 SCAPIN（data/scapin_relations.tsv） ── */
+.related-title { margin: 0 0 8px; font-size: 1rem; font-weight: 700; }
+.related-title .rel-help-link { margin-left: 12px; font-size: 0.75rem; font-weight: 400; color: var(--accent); text-decoration: none; }
+.related-title .rel-help-link:hover { text-decoration: underline; }
+.rel-group { margin-top: 10px; }
+.rel-group h3 { margin: 0 0 4px; font-size: 0.875rem; font-weight: 500; color: var(--muted); }
+.rel-group ul { margin: 0; padding: 0; list-style: none; font-size: 0.875rem; line-height: 1.7; }
+.rel-group li { display: flex; gap: 12px; }
+.rel-group li > a, .rel-group .rel-nolink { flex: none; min-width: 9em; }
+.rel-subject { color: var(--muted); overflow-wrap: anywhere; }
+
 /* ── 前後の指令 ── */
 .pager { display: flex; justify-content: space-between; gap: 16px; margin: 24px 0 8px; font-size: 0.875rem; }
 .pager a {
@@ -203,17 +239,6 @@ mark { background: #fef08a; color: inherit; padding: 0 1px; border-radius: 2px; 
 .doc-back { margin: 0 0 8px; font-size: 0.875rem; }
 .doc-back a { color: var(--accent); text-decoration: none; }
 .doc-back a:hover { text-decoration: underline; }
-.src-file { margin-left: 16px; color: #9ca3af; font-size: 0.75rem; }
-
-.viewer-toggle {
-  font: inherit;
-  color: var(--accent);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-.viewer-toggle:hover { text-decoration: underline; }
 
 .doc-toc {
   background: var(--card-bg);

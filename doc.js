@@ -175,7 +175,6 @@
 
   document.addEventListener('click', (e) => {
     if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
-    if (e.target.closest('[data-viewer-toggle]')) { panel.hidden ? open() : close(); return; }
     const src = e.target.closest('.part .source');
     if (!src) return;
     e.preventDefault();
