@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: { fontFamily: { sans: ['"Noto Sans JP"', 'ui-sans-serif', 'system-ui', 'sans-serif'] } } } }
+</script>
+<title>SCAPIN-DB</title>
+<meta name="description" content="占領期に連合国最高司令官（SCAP）が日本政府に出した指令（SCAPIN）の本文を、国立国会図書館の原本画像と並べて読み、全文検索する">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen font-sans">
+
+<header class="lp-header">
+  <div class="lp-header-inner">
+    <div class="title-box"><h1 class="lp-title"><a href="https://law-platform.jp/">法律情報基盤</a></h1><h2 class="lp-subtitle"><a href="https://law-platform.jp/"> - Legal Information Platform - </a></h2></div>
+  </div>
+</header>
+
+<div class="max-w-3xl mx-auto px-4 pt-8">
+  <div class="mb-6 fade-down">
+    <h1 class="text-2xl font-bold text-gray-900 tracking-wide"><a href="./">SCAPIN-DB</a></h1>
+    <p class="mt-2 text-sm text-gray-500">連合国最高司令官指令（SCAPIN） 2635 件 ・ 1945-09-02 〜 1952-04-26</p>
+  </div>
+
+  <form id="sform" class="search-panel" role="search" autocomplete="off">
+    <div class="search-row">
+      <input id="fq" name="q" type="search" aria-label="本文を検索" placeholder="本文を検索（例：repatriation、&quot;civil liberties&quot;、cartel*）">
+      <button id="fclear" type="button" title="条件をすべてクリア" aria-label="条件をすべてクリア">×</button>
+    </div>
+    <div class="adv">
+      <label for="fno">SCAPIN No.</label>
+      <div><input id="fno" name="no" type="text" placeholder="例：245　408/2　100-200"></div>
+      <label for="fd1">Date</label>
+      <div class="date-row">
+        <select id="fdm" name="dm" aria-label="日付の指定方法"><option value="on">日付を指定</option><option value="range">期間を指定</option></select>
+        <input id="fd1" name="d1" type="text" placeholder="1946-05-03" inputmode="numeric">
+        <span class="range-only">〜</span>
+        <input id="fd2" name="d2" class="range-only" type="text" placeholder="1946-12-31" inputmode="numeric" aria-label="期間の終わり">
+      </div>
+      <label for="fs">Subject</label>
+      <div><input id="fs" name="s" type="text" placeholder="例：repatriation　labor union"></div>
+      <label for="fdept">Department</label>
+      <div><select id="fdept" name="dept"><option value="">すべて</option></select></div>
+    </div>
+    <div class="form-foot">
+      <label>並べ替え <select id="fsort" name="sort">
+        <option value="no">SCAPIN No. 順</option>
+        <option value="date">Date 順（古い順）</option>
+        <option value="date-desc">Date 順（新しい順）</option>
+      </select></label>
+      <button id="fsubmit" type="submit">検索</button>
+    </div>
+    <p class="hint">本文は単語で検索します。空白区切りで AND、<code>OR</code> で OR、<code>-語</code> で除外、<code>"…"</code> で語順どおりのフレーズ、<code>語*</code> で前方一致（例：<code>repatriat*</code>）。大文字・小文字は区別せず、単数形・複数形（center／centers、policy／policies）は同じ語として扱います。Subject も同じ書き方で検索できます。SCAPIN No. は <code>245</code>（245/1 などの枝番も含む）、<code>408/2</code>、<code>100-200</code>、<code>1, 5, 9</code> の形で指定できます。Date は <code>1946</code>、<code>1946-05</code>、<code>1946-05-03</code> の形で、年・年月・年月日のどれでも指定できます。</p>
+  </form>
+
+  <p id="fstatus" class="mt-6 mb-4 text-sm text-gray-500"></p>
+  <section id="results" aria-live="polite"></section>
+  <div id="more-wrap" class="more-wrap" hidden><button id="more" type="button">さらに表示</button></div>
+
+</div>
+
+<footer class="lp-footer">
+  <div class="lp-footer-inner">
+    <p><a href="https://law-platform.jp/terms">サイトポリシー</a></p>
+    <p>Copyright &copy;<a href="https://researchmap.jp/30419428" rel="noopener noreferrer" target="_blank"> SANO Tomoya</a></p>
+    <div>
+      <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener noreferrer" target="_blank"><img alt="CC BY 4.0" class="cc-logo" src="https://licensebuttons.net/l/by/4.0/88x31.png" /></a>
+      <p>本データベースは、<a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener noreferrer" target="_blank">クリエイティブ・コモンズ 表示 4.0 ライセンス</a>のもとで利用できます。</p>
+    </div>
+  </div>
+</footer>
+<script src="query.js"></script>
+<script src="search.js"></script>
+</body>
+</html>
