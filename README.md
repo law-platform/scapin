@@ -10,7 +10,7 @@ SCAPIN の本文のデータは、佐野智也『SCAPIN』（名古屋大学、2
 
 ```
 index.html            検索ページ（本文の全文検索と、SCAPIN No.・Date・Subject・File No.・Department の詳細検索。検索の書き方・略号一覧・関係 SCAPIN の見方は折りたたみで載せる）
-doc/<指令>.html       各指令の本文と関係 SCAPIN。「原本 →」から原本画像を本文の横に表示する
+doc/<指令>.html       各指令の本文と関係 SCAPIN。原本画像を本文の横に並べて表示する（初めから開き、× で閉じると以後は閉じたまま）
 style.css             見た目（明治法典編纂議事録 arthis・明治法律辞書検索 juridic と共通の作り）
 query.js              検索語の解釈と照合（検索ページと各指令のページで共通）
 search.js             検索ページの処理

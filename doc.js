@@ -60,8 +60,9 @@
 
   const manifestUrl = `https://dl.ndl.go.jp/api/iiif/${pid}/manifest.json`;
   const ndlPage = (frame) => `https://dl.ndl.go.jp/pid/${pid}/1/${frame}`;
+  // 閉じたかどうかを覚える（'0' のときだけ閉じた状態で開く。初めは並べて表示する）
   const store = {
-    get() { try { return localStorage.getItem(STORE_KEY) === '1'; } catch { return false; } },
+    get() { try { return localStorage.getItem(STORE_KEY) !== '0'; } catch { return true; } },
     set(v) { try { localStorage.setItem(STORE_KEY, v ? '1' : '0'); } catch { /* 保存できなくても動作には影響しない */ } },
   };
 
@@ -181,6 +182,7 @@
     open(startFrame);
   });
 
-  // 前のページで開いていたら、このページでも開く
-  if (store.get()) open();
+  // 原本画像を本文と並べて表示する（× で閉じたら、以後のページでも閉じたまま）。
+  //   コマが特定できていない SCAPIN-A（data-exact なし）は、違うコマを見せないよう自動では開かない
+  if (card.dataset.exact === '1' && store.get()) open();
 })();
