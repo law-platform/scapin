@@ -38,7 +38,7 @@ search/               検索のデータ
 `scapin/program/convert_scapin_to_html.ps1` が、元データから生成する。
 
 - `scapin/data/SCAPIN/*.xml`: 本文（TEI）
-- `scapin/data/SCAPIN-A/*.xml`: SCAPIN-A（件名は titleStmt の title、番号・日付・発出部局は idno・docDate・orgName の属性だけで、本文はない）
+- `scapin/data/SCAPIN-A/*.xml`: SCAPIN-A（ファイル名は `scapin-a0130.xml`、枝番は `scapin-a0130-1.xml`。件名は titleStmt の title、番号・日付・発出部局は idno・docDate・orgName の属性だけで、本文はない）
 - `scapin/data/scapin_relations.tsv`: 関係 SCAPIN（英文目録の記載による。列は scapin・relation・target・note で、番号は `927/1`、`130-A/1`、`unnumbered` の表記）。各指令のページには、相手の側の行を逆向きにした関係（Amended by など）も出す
 
 元データを変えたら、`scapin/` 直下で:

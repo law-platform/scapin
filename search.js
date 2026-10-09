@@ -85,7 +85,7 @@
       if (rest.length) { const sub = rest.join('//'); s.subs.set(sub, (s.subs.get(sub) || 0) + count[i]); }
     });
     sections = new Map([...sections].sort((a, b) => a[0].localeCompare(b[0])));
-    let html = '<option value="">すべて</option>';
+    let html = '<option value="">All</option>';
     for (const [sec, s] of sections) html += `<option value="${esc(sec)}">${esc(sec)}（${s.total}）</option>`;
     const cur = fields.dept.value;
     const curDiv = fields.div.value;
@@ -97,7 +97,7 @@
 
   function fillDivs(cur = '') {
     const s = sections.get(fields.dept.value);
-    let html = '<option value="">すべて</option>';
+    let html = '<option value="">All</option>';
     if (s) for (const [sub, n] of [...s.subs].sort((a, b) => a[0].localeCompare(b[0]))) html += `<option value="${esc(sub)}">${esc(sub)}（${n}）</option>`;
     fields.div.innerHTML = html;
     fields.div.disabled = !s || !s.subs.size;
@@ -122,7 +122,7 @@
         const a = Math.min(+m[1], +m[2]); const b = Math.max(+m[1], +m[2]);
         tests.push((i) => meta.base[i] >= a && meta.base[i] <= b);
       }
-      else throw new InputError(`SCAPIN No. の「${part}」を読み取れません`);
+      else throw new InputError(`SCAPIN No.: cannot read "${part}"`);
     }
     const test = (i) => tests.some((t) => t(i));
     test.hasA = /-A/.test(s);   // SCAPIN-A の番号を名指ししている
@@ -134,11 +134,11 @@
     if (!y && !m && !d) return null;
     const num = (x) => x.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
     [y, m, d] = [num(y), num(m), num(d)];
-    if (!/^\d{2}(\d{2})?$/.test(y)) throw new InputError(`${label}の年を 1946 か 46 の形で入れてください`);
+    if (!/^\d{2}(\d{2})?$/.test(y)) throw new InputError(`${label}: enter the year as 1946 or 46`);
     if (y.length === 2) y = '19' + y;
-    if (m && !(/^\d{1,2}$/.test(m) && +m >= 1 && +m <= 12)) throw new InputError(`${label}の月を 1〜12 で入れてください`);
-    if (d && !(/^\d{1,2}$/.test(d) && +d >= 1 && +d <= 31)) throw new InputError(`${label}の日を 1〜31 で入れてください`);
-    if (d && !m) throw new InputError(`${label}の日を指定するときは月も入れてください`);
+    if (m && !(/^\d{1,2}$/.test(m) && +m >= 1 && +m <= 12)) throw new InputError(`${label}: enter the month as 1–12`);
+    if (d && !(/^\d{1,2}$/.test(d) && +d >= 1 && +d <= 31)) throw new InputError(`${label}: enter the day as 1–31`);
+    if (d && !m) throw new InputError(`${label}: enter the month as well as the day`);
     const p2 = (x) => String(+x).padStart(2, '0');
     if (d) { const s = `${y}-${p2(m)}-${p2(d)}`; return [s, s]; }
     if (m) return [`${y}-${p2(m)}-01`, `${y}-${p2(m)}-31`];
@@ -147,12 +147,12 @@
 
   function dateTest(v) {
     if (v.dm === 'range') {
-      const a = parseDate(v.y1, v.m1, v.d1, 'Date（期間の始め）');
-      const b = parseDate(v.y2, v.m2, v.d2, 'Date（期間の終わり）');
+      const a = parseDate(v.y1, v.m1, v.d1, 'Date (start)');
+      const b = parseDate(v.y2, v.m2, v.d2, 'Date (end)');
       if (!a && !b) return null;
       return (i) => { const d = meta.docs[i][2]; return !!d && (!a || d >= a[0]) && (!b || d <= b[1]); };
     }
-    const a = parseDate(v.y1, v.m1, v.d1, 'Date ');
+    const a = parseDate(v.y1, v.m1, v.d1, 'Date');
     if (!a) return null;
     return (i) => { const d = meta.docs[i][2]; return !!d && d >= a[0] && d <= a[1]; };
   }
@@ -298,23 +298,25 @@
         if (rg[0] < lastEnd) continue;
         const sn = snippet(c.text, rg, c.ranges);
         lastEnd = sn.end;
-        lis += `<li><a href="${href}#p${c.no}">${c.no > 1 ? '<span class="who">付属文書</span>' : ''}${sn.html}</a></li>`;
+        lis += `<li><a href="${href}#p${c.no}">${c.no > 1 ? '<span class="who">Attachment</span>' : ''}${sn.html}</a></li>`;
         shown++;
       }
     }
     return `<article class="entry result">
-<div class="entry-meta"><span class="badge">${esc(no ? 'SCAPIN-' + no : 'Unnumbered')}</span><span class="crumb">${esc([date, fileNo ? 'AG ' + fileNo : '', dept].filter(Boolean).join(' ・ '))}</span>${total ? `<span class="source">${total} 箇所</span>` : ''}</div>
+<div class="entry-meta"><span class="badge">${esc(no ? 'SCAPIN-' + no : 'Unnumbered')}</span><span class="crumb">${esc([date, fileNo ? 'AG ' + fileNo : '', dept].filter(Boolean).join(' ・ '))}</span>${total ? `<span class="source">${total} ${total === 1 ? 'hit' : 'hits'}</span>` : ''}</div>
 <h3 class="hw"><a href="${href}">${highlight(subject, r.subject)}</a></h3>
-${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class="more-hits"><a href="${href}">ほか ${total - shown} 箇所 →</a></p>` : ''}
+${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class="more-hits"><a href="${href}">${total - shown} more ${total - shown === 1 ? 'hit' : 'hits'} →</a></p>` : ''}
 </article>`;
   }
 
   // ── 検索の実行 ──
+  const resultCount = (n) => `${n.toLocaleString('en')} ${n === 1 ? 'result' : 'results'}`;
+
   function setStatus(r) {
     const done = r.next >= r.cand.length;
-    if (done && !r.found) { statusEl.textContent = '該当する指令はありません'; return; }
-    if (r.exact) statusEl.textContent = `${r.cand.length} 件`;
-    else statusEl.textContent = `${r.found} 件` + (done ? '' : `（候補 ${r.cand.length} 件のうち ${r.next} 件を確認済み）`);
+    if (done && !r.found) { statusEl.textContent = 'No directives found'; return; }
+    if (r.exact) statusEl.textContent = resultCount(r.cand.length);
+    else statusEl.textContent = resultCount(r.found) + (done ? '' : ` (${r.next.toLocaleString('en')} of ${r.cand.length.toLocaleString('en')} candidates checked)`);
   }
 
   async function showMore(r) {
@@ -393,14 +395,14 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
     results.innerHTML = '';
     moreWrap.hidden = true;
     if (!hasCondition(v)) { statusEl.textContent = ''; return; }
-    statusEl.textContent = '検索中…';
+    statusEl.textContent = 'Searching…';
     try {
       await loadMeta();
       // 詳細検索の条件。種類が SCAPIN だけでも、SCAPIN-A の番号（130-A など）を名指ししたら SCAPIN-A も出す
-      if (v.t === 'none') throw new InputError('種類（SCAPIN・SCAPIN-A）のどちらかにチェックを入れてください');
+      if (v.t === 'none') throw new InputError('Check SCAPIN or SCAPIN-A under Type');
       const noTest = parseNo(v.no);
       const series = noTest && noTest.hasA && v.t === 's' ? 'all' : v.t;
-      if (v.q && series === 'a') throw new InputError('SCAPIN-A は本文のテキストがないため、本文の検索はできません。種類の SCAPIN にもチェックを入れてください');
+      if (v.q && series === 'a') throw new InputError('SCAPIN-A has no full text, so a full-text search needs SCAPIN checked under Type as well');
       const tests = [seriesTest(series), noTest, dateTest(v), fileTest(v.file), deptTest(v.dept, v.div)].filter(Boolean);
       if (v.s) {
         const sq = Q.parse(v.s);
@@ -435,14 +437,14 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
       r.cand = cand;
       await showMore(r);
     } catch (e) {
-      if (run === r) statusEl.textContent = e instanceof InputError ? e.message : '検索用のデータを読み込めませんでした';
+      if (run === r) statusEl.textContent = e instanceof InputError ? e.message : 'Could not load the search data';
     }
   }
 
   function syncDateMode() {
     const range = fields.dm.value === 'range';
     dateRow.classList.toggle('is-range', range);
-    for (const k of ['y1', 'm1', 'd1']) fields[k].setAttribute('aria-label', (range ? '期間の始めの' : '') + fields[k].placeholder);
+    for (const k of ['y1', 'm1', 'd1']) fields[k].setAttribute('aria-label', (range ? 'Start ' + fields[k].placeholder.toLowerCase() : fields[k].placeholder));
   }
 
   form.addEventListener('submit', (e) => { e.preventDefault(); search(true); });

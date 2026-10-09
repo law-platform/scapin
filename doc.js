@@ -70,18 +70,18 @@
   const panel = document.createElement('aside');
   panel.id = 'viewer';
   panel.hidden = true;
-  panel.setAttribute('aria-label', '原本画像');
+  panel.setAttribute('aria-label', 'Images of the original');
   panel.innerHTML = `
     <div class="viewer-bar">
-      <button type="button" data-act="prev" title="前のコマ">‹</button>
+      <button type="button" data-act="prev" title="Previous frame">‹</button>
       <span class="label"></span>
-      <button type="button" data-act="next" title="次のコマ">›</button>
+      <button type="button" data-act="next" title="Next frame">›</button>
       <span class="spacer"></span>
-      <button type="button" data-act="home" title="全体を表示">全体</button>
-      <button type="button" data-act="in" title="拡大">＋</button>
-      <button type="button" data-act="out" title="縮小">－</button>
+      <button type="button" data-act="home" title="Fit to window">Fit</button>
+      <button type="button" data-act="in" title="Zoom in">＋</button>
+      <button type="button" data-act="out" title="Zoom out">－</button>
       <a class="ndl" target="_blank" rel="noopener">NDL →</a>
-      <button type="button" data-act="close" title="閉じる">×</button>
+      <button type="button" data-act="close" title="Close">×</button>
     </div>
     <div id="viewer-canvas"><div class="viewer-msg"></div></div>`;
   document.body.appendChild(panel);
@@ -101,7 +101,7 @@
       const s = document.createElement('script');
       s.src = OSD_URL;
       s.onload = resolve;
-      s.onerror = () => reject(new Error('OpenSeadragon を読み込めませんでした'));
+      s.onerror = () => reject(new Error('Could not load OpenSeadragon'));
       document.head.appendChild(s);
     });
     return osdLoading;
@@ -116,12 +116,12 @@
           return `${(Array.isArray(svc) ? svc[0] : svc)['@id']}/info.json`;
         });
       })
-      .catch(() => { throw new Error('原本画像の一覧を読み込めませんでした'); });
+      .catch(() => { throw new Error('Could not load the list of images'); });
     return imagesLoading;
   }
 
   async function show(n) {
-    msg.textContent = '読み込み中…';
+    msg.textContent = 'Loading…';
     try {
       await Promise.all([loadScript(), loadImages()]);
     } catch (e) {
@@ -129,7 +129,7 @@
       return;
     }
     frame = Math.min(Math.max(1, n), images.length);
-    label.textContent = `コマ ${frame} / ${images.length}`;
+    label.textContent = `Frame ${frame} / ${images.length}`;
     ndlLink.href = ndlPage(frame);
     if (!osd) {
       osd = OpenSeadragon({
@@ -141,7 +141,7 @@
         animationTime: 0.4,
       });
       osd.addHandler('open', () => { msg.textContent = ''; });
-      osd.addHandler('open-failed', () => { msg.textContent = '画像を読み込めませんでした'; });
+      osd.addHandler('open-failed', () => { msg.textContent = 'Could not load the image'; });
     }
     osd.open(images[frame - 1]);
   }

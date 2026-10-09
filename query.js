@@ -75,7 +75,7 @@ window.ScapinQuery = (() => {
       const prefix = /\*\s*$/.test(raw);
       const ws = tokenize(norm(raw)).map((t) => t[0]);
       if (!ws.length) { joinOr = false; continue; }
-      if (prefix && ws[ws.length - 1].length < 2) { error = '前方一致（*）は 2 文字以上の語に付けてください'; joinOr = false; continue; }
+      if (prefix && ws[ws.length - 1].length < 2) { error = 'Use * only after words of two or more letters'; joinOr = false; continue; }
       const item = { ws, prefix, forms: ws.map((w, j) => (prefix && j === ws.length - 1 ? null : forms(w))) };
       if (minus) { neg.push(item); joinOr = false; continue; }
       if (joinOr) groups[groups.length - 1].push(item);
