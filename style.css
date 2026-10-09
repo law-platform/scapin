@@ -54,10 +54,6 @@
 }
 .search-row button:hover { background: #f3f4f6; }
 
-/* 元データの出典（検索ページの見出しの下） */
-.data-cite { margin: 4px 0 0; font-size: 0.8125rem; color: var(--muted); }
-.data-cite a { color: var(--accent); text-decoration: none; }
-.data-cite a:hover { text-decoration: underline; }
 
 /* ── 詳細検索 ── */
 .adv {
@@ -68,7 +64,10 @@
   margin-top: 14px;
   font-size: 0.875rem;
 }
-.adv > label { font-weight: 500; color: var(--ink); }
+.adv > label, .adv > .adv-label { font-weight: 500; color: var(--ink); }
+.series-row { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.series-row label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.adv .series-row input { width: auto; accent-color: var(--accent); }
 .adv input, .adv select, .form-foot select {
   font: inherit;
   color: var(--ink);
@@ -111,8 +110,11 @@
   cursor: pointer;
 }
 #fsubmit:hover { background: #1d4ed8; }
-.hint { margin: 12px 0 0; font-size: 0.75rem; color: var(--muted); line-height: 1.7; }
-.hint code { padding: 0 3px; background: #f3f4f6; border-radius: 3px; font-size: 0.75rem; }
+/* 検索の書き方・略号一覧・関係 SCAPIN の見方（折りたたみ） */
+.help { margin-top: 6px; line-height: 1.7; }
+.help h4 { margin: 8px 0 2px; font-size: 0.8125rem; font-weight: 500; color: var(--ink); }
+.help ul { margin: 0; padding-left: 1.4em; list-style: disc; color: var(--muted); }
+.help code { padding: 0 3px; background: #f3f4f6; border-radius: 3px; font-size: 0.75rem; }
 
 /* 略号一覧（data/FileDepartment.txt） */
 .legend { margin-top: 10px; font-size: 0.8125rem; }
@@ -208,6 +210,7 @@ mark { background: #fef08a; color: inherit; padding: 0 1px; border-radius: 2px; 
 .s-closer p { margin: 0 0 0.3em; }
 .s-note { font-size: 0.875rem; color: var(--muted); margin-top: 8px; }
 .s-note p { margin: 0; }
+.s-notext p { margin: 0; color: var(--muted); font-size: 0.875rem; }
 
 /* ── 関係 SCAPIN（data/scapin_relations.tsv） ── */
 .related-title { margin: 0 0 8px; font-size: 1rem; font-weight: 700; }
@@ -307,7 +310,7 @@ mark { background: #fef08a; color: inherit; padding: 0 1px; border-radius: 2px; 
 
 @media (max-width: 640px) {
   .adv { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
-  .adv > label { margin-top: 8px; }
+  .adv > label, .adv > .adv-label { margin-top: 8px; }
   .s-field { grid-template-columns: 1fr; }
   .pager { flex-direction: column; }
   .pager a { max-width: none; }

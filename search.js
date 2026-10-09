@@ -46,18 +46,38 @@
     metaLoading ??= getJson('meta.json').then((m) => {
       meta = m;
       meta.base = m.docs.map((d) => (d[1] ? parseInt(d[1], 10) : NaN));
+      meta.isA = m.docs.map((d) => /-A/.test(d[1]));
       buildDepts();
     });
     return metaLoading;
   }
 
+  // 種類（SCAPIN・SCAPIN-A のチェック。初期状態は両方）。URL では片方だけのとき t=s / t=a、どちらも外したとき t=none
+  const seriesBoxes = { s: $('fts'), a: $('fta') };
+  const getSeries = () => {
+    const s = seriesBoxes.s.checked; const a = seriesBoxes.a.checked;
+    return s && a ? 'all' : s ? 's' : a ? 'a' : 'none';
+  };
+  function setSeries(v) {
+    seriesBoxes.s.checked = v === 'all' || v === 's';
+    seriesBoxes.a.checked = v === 'all' || v === 'a';
+  }
+  function seriesTest(t) {
+    if (t === 'all') return null;
+    const a = t === 'a';
+    return (i) => meta.isA[i] === a;
+  }
+
   // 部局の鍵「課 (名称)//部 (名称)」を課ごとにまとめ、課のプルダウンを作る。部のプルダウンは課を選ぶと作る
+  //   件数は選んでいる種類の中で数える。その種類に出てこない部局は出さない
   let sections = new Map();   // 課 → { total, subs: Map(部 → 件数) }
   function buildDepts() {
     const count = new Array(meta.depts.length).fill(0);
-    for (const d of meta.docs) if (d[4] >= 0) count[d[4]]++;
+    const inSeries = seriesTest(getSeries());
+    meta.docs.forEach((d, i) => { if (d[4] >= 0 && (!inSeries || inSeries(i))) count[d[4]]++; });
     sections = new Map();
     meta.depts.forEach((key, i) => {
+      if (!count[i]) return;
       const [sec, ...rest] = key.split('//');
       if (!sections.has(sec)) sections.set(sec, { total: 0, subs: new Map() });
       const s = sections.get(sec);
@@ -68,9 +88,11 @@
     let html = '<option value="">すべて</option>';
     for (const [sec, s] of sections) html += `<option value="${esc(sec)}">${esc(sec)}（${s.total}）</option>`;
     const cur = fields.dept.value;
+    const curDiv = fields.div.value;
     fields.dept.innerHTML = html;
     fields.dept.value = cur;
-    fillDivs();
+    if (fields.dept.selectedIndex === -1) fields.dept.value = '';
+    fillDivs(fields.dept.value === cur ? curDiv : '');
   }
 
   function fillDivs(cur = '') {
@@ -84,22 +106,27 @@
   }
 
   // ── 詳細検索の条件 ──
-  // SCAPIN No.: 245（枝番 245/1 なども含む）、408/2、100-200、1, 5, 9
+  // SCAPIN No.: 245（枝番 245/1 なども含む）、408/2、100-200、1, 5, 9、130-A（枝番も含む）、130-A/1
+  //   -A の付かない番号は、種類で選んだもの（両方なら SCAPIN と SCAPIN-A の両方）の番号として扱う
   function parseNo(str) {
-    const s = str.replace(/scapin[\s-]*/gi, '').replace(/\s*[-–―〜~～]\s*/g, '-').trim();
+    const s = str.replace(/scapin[\s-]*/gi, '').replace(/\s*[-–―〜~～]\s*/g, '-').replace(/-a\b/gi, '-A').trim();
     if (!s) return null;
     const tests = [];
     for (const part of s.split(/[\s,，、;]+/).filter(Boolean)) {
       let m;
       if ((m = part.match(/^(\d+)$/))) { const n = +m[1]; tests.push((i) => meta.base[i] === n); }
       else if ((m = part.match(/^(\d+)\/(\d+)$/))) { const v = `${+m[1]}/${+m[2]}`; tests.push((i) => meta.docs[i][1] === v); }
+      else if ((m = part.match(/^(\d+)-A$/))) { const n = +m[1]; tests.push((i) => meta.isA[i] && meta.base[i] === n); }
+      else if ((m = part.match(/^(\d+)-A\/(\d+)$/))) { const v = `${+m[1]}-A/${+m[2]}`; tests.push((i) => meta.docs[i][1] === v); }
       else if ((m = part.match(/^(\d+)-(\d+)$/))) {
         const a = Math.min(+m[1], +m[2]); const b = Math.max(+m[1], +m[2]);
         tests.push((i) => meta.base[i] >= a && meta.base[i] <= b);
       }
       else throw new InputError(`SCAPIN No. の「${part}」を読み取れません`);
     }
-    return (i) => tests.some((t) => t(i));
+    const test = (i) => tests.some((t) => t(i));
+    test.hasA = /-A/.test(s);   // SCAPIN-A の番号を名指ししている
+    return test;
   }
 
   // 年・月・日の欄 → その期間の [最初の日, 最後の日]（文字列で比べる）。年だけ、年と月だけでもよい
@@ -322,18 +349,20 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
   }
 
   function readForm() {
-    const v = {};
+    const v = { t: getSeries() };
     for (const [k, el] of Object.entries(fields)) v[k] = el.value.trim();
     return v;
   }
 
   function writeForm(p) {
+    setSeries(p.get('t') ?? 'all');
     for (const [k, el] of Object.entries(fields)) {
       if (k === 'div') continue;
       const def = k === 'dm' ? 'on' : k === 'sort' ? 'no' : '';
       el.value = p.get(k) ?? def;
       if (el.tagName === 'SELECT' && el.selectedIndex === -1) el.value = def;
     }
+    if (meta) buildDepts();
     fillDivs(p.get('div') ?? '');
     syncDateMode();
   }
@@ -341,7 +370,7 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
   function toParams(v) {
     const p = new URLSearchParams();
     for (const [k, x] of Object.entries(v)) {
-      if (!x || (k === 'dm' && x === 'on') || (k === 'sort' && x === 'no')) continue;
+      if (!x || (k === 't' && x === 'all') || (k === 'dm' && x === 'on') || (k === 'sort' && x === 'no')) continue;
       if (/^[ymd]2$/.test(k) && v.dm !== 'range') continue;
       p.set(k, x);
     }
@@ -367,8 +396,12 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
     statusEl.textContent = '検索中…';
     try {
       await loadMeta();
-      // 詳細検索の条件
-      const tests = [parseNo(v.no), dateTest(v), fileTest(v.file), deptTest(v.dept, v.div)].filter(Boolean);
+      // 詳細検索の条件。種類が SCAPIN だけでも、SCAPIN-A の番号（130-A など）を名指ししたら SCAPIN-A も出す
+      if (v.t === 'none') throw new InputError('種類（SCAPIN・SCAPIN-A）のどちらかにチェックを入れてください');
+      const noTest = parseNo(v.no);
+      const series = noTest && noTest.hasA && v.t === 's' ? 'all' : v.t;
+      if (v.q && series === 'a') throw new InputError('SCAPIN-A は本文のテキストがないため、本文の検索はできません。種類の SCAPIN にもチェックを入れてください');
+      const tests = [seriesTest(series), noTest, dateTest(v), fileTest(v.file), deptTest(v.dept, v.div)].filter(Boolean);
       if (v.s) {
         const sq = Q.parse(v.s);
         if (sq.error) throw new InputError(`Subject: ${sq.error}`);
@@ -386,6 +419,8 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
         }
       }
       if (!cand) cand = meta.docs.map((_, i) => i);
+      // 本文の検索では SCAPIN-A（本文なし）を除く（除外の語だけの検索で全件が候補になる場合）
+      if (r.text) cand = cand.filter((i) => !meta.isA[i]);
       if (run !== r) return;
       cand = cand.filter((i) => tests.every((t) => t(i)));
       if (v.sort === 'date' || v.sort === 'date-desc') {
@@ -413,6 +448,7 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
   form.addEventListener('submit', (e) => { e.preventDefault(); search(true); });
   fields.dm.addEventListener('change', syncDateMode);
   fields.dept.addEventListener('change', () => fillDivs());
+  for (const x of Object.values(seriesBoxes)) x.addEventListener('change', () => { if (meta) buildDepts(); });
   fields.sort.addEventListener('change', () => { if (hasCondition(readForm())) search(true); });
   $('fclear').addEventListener('click', () => {
     writeForm(new URLSearchParams());
