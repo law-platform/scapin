@@ -50,9 +50,9 @@
 
 // 原本画像ビューア：国立国会図書館デジタルコレクションの IIIF 画像を本文の横（狭い画面では下）に表示する
 //   各カードの data-pid / data-frame が資料とコマを指す。コマの一覧は IIIF のマニフェストから取る
+//   カードの「Original →」で開く。開いた状態は記憶しない（頁を移ると閉じた状態から始まる。arthis と同じ）
 (() => {
   const OSD_URL = 'https://cdnjs.cloudflare.com/ajax/libs/openseadragon/5.0.1/openseadragon.min.js';
-  const STORE_KEY = 'scapin-viewer-open';
   const card = document.querySelector('.part[data-pid]');
   if (!card) return;
   const pid = card.dataset.pid;
@@ -60,12 +60,6 @@
 
   const manifestUrl = `https://dl.ndl.go.jp/api/iiif/${pid}/manifest.json`;
   const ndlPage = (frame) => `https://dl.ndl.go.jp/pid/${pid}/1/${frame}`;
-  // 閉じたかどうかを覚える（'0' のときだけ閉じた状態で開く。初めは並べて表示する）
-  const store = {
-    get() { try { return localStorage.getItem(STORE_KEY) !== '0'; } catch { return true; } },
-    set(v) { try { localStorage.setItem(STORE_KEY, v ? '1' : '0'); } catch { /* 保存できなくても動作には影響しない */ } },
-  };
-
   // ── 画面部品 ──
   const panel = document.createElement('aside');
   panel.id = 'viewer';
@@ -149,14 +143,12 @@
   function open(n) {
     panel.hidden = false;
     document.body.classList.add('viewer-open');
-    store.set(true);
     show(n ?? frame);
   }
 
   function close() {
     panel.hidden = true;
     document.body.classList.remove('viewer-open');
-    store.set(false);
   }
 
   // ── 操作 ──
@@ -182,7 +174,4 @@
     open(startFrame);
   });
 
-  // 原本画像を本文と並べて表示する（× で閉じたら、以後のページでも閉じたまま）。
-  //   コマが特定できていない SCAPIN-A（data-exact なし）は、違うコマを見せないよう自動では開かない
-  if (card.dataset.exact === '1' && store.get()) open();
 })();
