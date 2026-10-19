@@ -383,7 +383,19 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
     return !!(v.q || v.no || v.y1 || v.m1 || v.d1 || (v.dm === 'range' && (v.y2 || v.m2 || v.d2)) || v.s || v.file || v.dept);
   }
 
-  async function search(push) {
+  // Google アナリティクスに検索語と件数を送る（Search ボタン・Enter での検索だけ。URL から開き直したとき・戻ったときと、直前と同じ語は送らない）。
+  // 検索語は本文の語と、件名の語（subject: を付ける）。番号・日付などだけの検索は送らない。
+  // 件数は見つかった指令の数。候補を確かめきっていなければ「100+」のように、その時点の数に + を付ける
+  let lastSent = '';
+  function sendSearch(r) {
+    const term = [r.v.q, r.v.s && `subject:${r.v.s}`].filter(Boolean).join(' ');
+    if (!term || term === lastSent || typeof gtag !== 'function') return;
+    lastSent = term;
+    const count = r.exact ? r.cand.length : r.next >= r.cand.length ? r.found : `${r.found}+`;
+    gtag('event', 'search', { search_term: term.slice(0, 100), result_count: String(count) });
+  }
+
+  async function search(push, send = false) {
     const v = readForm();
     const r = { v, cand: [], next: 0, found: 0, text: null, subject: null, exact: true };
     run = r;
@@ -436,6 +448,7 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
       }
       r.cand = cand;
       await showMore(r);
+      if (send && run === r) sendSearch(r);
     } catch (e) {
       if (run === r) statusEl.textContent = e instanceof InputError ? e.message : 'Could not load the search data';
     }
@@ -447,7 +460,7 @@ ${lis ? `<ul class="kwic">${lis}</ul>` : ''}${total > shown && shown ? `<p class
     for (const k of ['y1', 'm1', 'd1']) fields[k].setAttribute('aria-label', (range ? 'Start ' + fields[k].placeholder.toLowerCase() : fields[k].placeholder));
   }
 
-  form.addEventListener('submit', (e) => { e.preventDefault(); search(true); });
+  form.addEventListener('submit', (e) => { e.preventDefault(); search(true, true); });
   fields.dm.addEventListener('change', syncDateMode);
   fields.dept.addEventListener('change', () => fillDivs());
   for (const x of Object.values(seriesBoxes)) x.addEventListener('change', () => { if (meta) buildDepts(); });
