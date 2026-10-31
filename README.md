@@ -36,6 +36,8 @@ search/               検索のデータ
 
 このフォルダの中身はすべて、このリポジトリの外にある変換プログラム
 `scapin/program/convert_scapin_to_html.ps1` が、元データから生成する。
+各指令のページ（`doc/`）の中身は `scapin/program/doc.xsl`（XSLT 1.0）が指令の TEI から作る（司法省日誌と同じ作り）。
+変換プログラムは、検索ページ・索引・meta.json を作り、書誌情報・前後の指令・関係 SCAPIN を doc.xsl に渡す。
 
 - `scapin/data/SCAPIN/*.xml`: 本文（TEI）
 - `scapin/data/SCAPIN-A/*.xml`: SCAPIN-A（ファイル名は `scapin-a0130.xml`、枝番は `scapin-a0130-1.xml`。件名は titleStmt の title、番号・日付・発出部局は idno・docDate・orgName の属性だけで、本文はない）
@@ -49,3 +51,6 @@ powershell -File program\convert_scapin_to_html.ps1
 
 1 件だけ確かめるときは `-Only <出力ファイル名>`（例: `-Only scapin0245.html`）を付ける。
 索引と meta.json は全件を変換したときだけ作り直すので、最後に全件を変換し直す。
+
+変換は、中身が変わったファイルだけを書き出す（中身の同じファイルは書き直さないので、Dropbox で同期されない）。
+書き出す中身は、まずこのリポジトリの git の版（最後にコミット・git add した版。ファイルがそのときのままのとき）と、次に前回書き出した版（大きさとハッシュの記録 `scapin/build/written/scapin.tsv`）と比べる（このリポジトリのファイルは読まない）。
